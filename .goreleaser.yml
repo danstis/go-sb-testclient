@@ -14,7 +14,7 @@ builds:
       - darwin
     ldflags:
       - -s -w -X github.com/danstis/go-sb-testclient/internal/version.Version={{.Version}}
-    binary: example
+    binary: go-sb-testclient
 archives:
   - replacements:
       darwin: Darwin
