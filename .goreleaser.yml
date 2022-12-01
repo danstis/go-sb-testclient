@@ -25,6 +25,10 @@ archives:
     format_overrides:
       - goos: windows
         format: zip
+    files:
+      - LICENSE*
+      - README*
+      - config.json.example
 checksum:
   name_template: "checksums.txt"
 snapshot:

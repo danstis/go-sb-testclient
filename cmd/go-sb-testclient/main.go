@@ -1,9 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"context"
-	"fmt"
+	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
@@ -11,75 +10,46 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azservicebus"
-	"github.com/BurntSushi/toml"
 	"github.com/danstis/go-sb-testclient/internal/version"
 )
 
 var (
-	configPath = path.Join(".", "config.txt")
+	configPath = path.Join(".", "config.json")
 	rm         = azservicebus.ReceiveModePeekLock
 )
 
 type settings struct {
-	PrimaryServiceBus   serviceBusSettings `toml:"primaryServiceBus`
-	SecondaryServiceBus serviceBusSettings `toml:"secondaryServiceBus`
-	CompleteMessages    bool               `toml:"complete_messages"`
-	CheckInterval       time.Duration      `toml:"check_interval"`
+	PrimaryServiceBus   serviceBusSettings `json:"primaryServiceBus"`
+	SecondaryServiceBus serviceBusSettings `json:"secondaryServiceBus"`
+	CompleteMessages    bool               `json:"completeMessages"`
+	CheckInterval       string             `json:"checkInterval"`
 }
 
 type serviceBusSettings struct {
-	ConnectionString string `toml:"connection_string"`
-	Topic            string `toml:"topic"`
-	Subscription     string `toml:"subscription"`
-}
-
-// getConfig returns the application configuration from the config TOML file.
-func getConfig() (settings, error) {
-	var s settings
-	_, err := toml.DecodeFile(configPath, &s)
-	if os.IsNotExist(err) {
-		s := settings{
-			PrimaryServiceBus: serviceBusSettings{
-				ConnectionString: "Endpoint=...",
-				Topic:            "topicName",
-				Subscription:     "subscriptionName",
-			},
-			SecondaryServiceBus: serviceBusSettings{
-				ConnectionString: "Endpoint=...",
-				Topic:            "topicName",
-				Subscription:     "subscriptionName",
-			},
-			CompleteMessages: false,
-			CheckInterval:    5 * time.Second,
-		}
-		_ = updateConfig(s)
-		return settings{}, fmt.Errorf("config file %q not found, please populate the newly created file", configPath)
-	}
-	if err != nil {
-		return settings{}, err
-	}
-	return s, nil
-}
-
-// updateConfig sets the configuration settings in the config TOML file.
-func updateConfig(s settings) error {
-	f, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	w := bufio.NewWriter(f)
-	defer w.Flush()
-	return toml.NewEncoder(w).Encode(s)
+	ConnectionString string `json:"connectionString"`
+	Topic            string `json:"topic"`
+	Subscription     string `json:"subscription"`
 }
 
 // Main entry point for the app.
 func main() {
 	log.Printf("Started Azure SB test client, version %q", version.Version)
 
-	cfg, err := getConfig()
+	// Read the config file.
+	fc, err := os.ReadFile(configPath)
 	if err != nil {
-		log.Fatalf("failed to load config file: %v", err)
+		log.Fatalf("failed to open config file, please ensure the config file '%s' exists: %v", configPath, err)
+	}
+	var cfg settings
+	err = json.Unmarshal(fc, &cfg)
+	if err != nil {
+		log.Fatalf("failed to read configuration from file '%s': %v", configPath, err)
+	}
+
+	//  Convert the checkInterval to a time.Duration
+	checkInt, err := time.ParseDuration(cfg.CheckInterval)
+	if err != nil {
+		log.Fatalf("couldn't convert '%v' to a duration: %v", cfg.CheckInterval, err)
 	}
 
 	// Override the ReceiveMode based on the configuration.
@@ -93,8 +63,8 @@ func main() {
 	defer cancel()
 
 	// Start the go routines for the primary and secondary connections.
-	go cfg.PrimaryServiceBus.processMessages(ctx, cfg.CheckInterval, "primary")
-	go cfg.SecondaryServiceBus.processMessages(ctx, cfg.CheckInterval, "secondary")
+	go cfg.PrimaryServiceBus.processMessages(ctx, checkInt, "PRI")
+	go cfg.SecondaryServiceBus.processMessages(ctx, checkInt, "SEC")
 
 	<-termChan
 }

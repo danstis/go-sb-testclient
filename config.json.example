@@ -1,0 +1,14 @@
+{
+    "primaryServiceBus": {
+        "connectionString": "Endpoint=...",
+        "topic": "topicName",
+        "subscription": "subscriptionName"
+    },
+    "secondaryServiceBus": {
+        "connectionString": "Endpoint=...",
+        "topic": "topicName",
+        "subscription": "subscriptionName"
+    },
+    "completeMessages": false,
+    "checkInterval": "5s"
+}

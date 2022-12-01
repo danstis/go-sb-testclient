@@ -28,3 +28,4 @@ _testmain.go
 # Other
 *.ignore*
 /config.txt
+/config.json
