@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"path"
 	"time"
 
@@ -14,14 +15,22 @@ import (
 	"github.com/danstis/go-sb-testclient/internal/version"
 )
 
-var configPath = path.Join(".", "config.txt")
+var (
+	configPath = path.Join(".", "config.txt")
+	rm         = azservicebus.ReceiveModePeekLock
+)
 
 type settings struct {
-	ConnectionString string        `toml:"connection_string"`
-	Topic            string        `toml:"topic"`
-	Subscription     string        `toml:"subscription"`
-	CompleteMessages bool          `toml:"complete_messages"`
-	CheckInterval    time.Duration `toml:"check_interval"`
+	PrimaryServiceBus   serviceBusSettings `toml:"primaryServiceBus`
+	SecondaryServiceBus serviceBusSettings `toml:"secondaryServiceBus`
+	CompleteMessages    bool               `toml:"complete_messages"`
+	CheckInterval       time.Duration      `toml:"check_interval"`
+}
+
+type serviceBusSettings struct {
+	ConnectionString string `toml:"connection_string"`
+	Topic            string `toml:"topic"`
+	Subscription     string `toml:"subscription"`
 }
 
 // getConfig returns the application configuration from the config TOML file.
@@ -30,9 +39,16 @@ func getConfig() (settings, error) {
 	_, err := toml.DecodeFile(configPath, &s)
 	if os.IsNotExist(err) {
 		s := settings{
-			ConnectionString: "Endpoint=...",
-			Topic:            "topicName",
-			Subscription:     "subscriptionName",
+			PrimaryServiceBus: serviceBusSettings{
+				ConnectionString: "Endpoint=...",
+				Topic:            "topicName",
+				Subscription:     "subscriptionName",
+			},
+			SecondaryServiceBus: serviceBusSettings{
+				ConnectionString: "Endpoint=...",
+				Topic:            "topicName",
+				Subscription:     "subscriptionName",
+			},
 			CompleteMessages: false,
 			CheckInterval:    5 * time.Second,
 		}
@@ -66,32 +82,47 @@ func main() {
 		log.Fatalf("failed to load config file: %v", err)
 	}
 
-	// Set the ReceiveMode based on the configuration.
-	rm := azservicebus.ReceiveModePeekLock
+	// Override the ReceiveMode based on the configuration.
 	if cfg.CompleteMessages {
 		rm = azservicebus.ReceiveModeReceiveAndDelete
 	}
 
+	termChan := make(chan os.Signal, 1)
+	signal.Notify(termChan, os.Interrupt)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start the go routines for the primary and secondary connections.
+	go cfg.PrimaryServiceBus.processMessages(ctx, cfg.CheckInterval, "primary")
+	go cfg.SecondaryServiceBus.processMessages(ctx, cfg.CheckInterval, "secondary")
+
+	<-termChan
+}
+
+// processMessages will connect to a service bus and receive any messages.
+func (s serviceBusSettings) processMessages(ctx context.Context, ci time.Duration, name string) {
 	// See here for instructions on how to get a Service Bus connection string:
 	// https://docs.microsoft.com/azure/service-bus-messaging/service-bus-quickstart-portal#get-the-connection-string
-	client, err := azservicebus.NewClientFromConnectionString(cfg.ConnectionString, nil)
+	client, err := azservicebus.NewClientFromConnectionString(s.ConnectionString, nil)
 	if err != nil {
-		log.Fatalf("failed to connect to service bus: %v", err)
-	}
-
-	rec, err := client.NewReceiverForSubscription(cfg.Topic, cfg.Subscription, &azservicebus.ReceiverOptions{ReceiveMode: rm})
-	if err != nil {
-		log.Fatalf("failed to open service bus subscription: %v", err)
-	}
-
-	for {
-		msgs, err := rec.ReceiveMessages(context.Background(), 100, nil)
+		log.Printf("[%s] failed to connect to service bus: %v", name, err)
+	} else {
+		rec, err := client.NewReceiverForSubscription(s.Topic, s.Subscription, &azservicebus.ReceiverOptions{ReceiveMode: rm})
 		if err != nil {
-			log.Fatalf("failed to get messages: %v", err)
+			log.Printf("[%s] failed to open service bus subscription: %v", name, err)
+			<-ctx.Done()
 		}
-		for _, m := range msgs {
-			log.Printf("QueuedTime: %v - Body: %s", m.EnqueuedTime, m.Body)
+
+		for {
+			msgs, err := rec.ReceiveMessages(context.Background(), 100, nil)
+			if err != nil {
+				log.Printf("[%s] failed to get messages: %v", name, err)
+				<-ctx.Done()
+			}
+			for _, m := range msgs {
+				log.Printf("[%s] QueuedTime: %v - Body: %s", name, m.EnqueuedTime, m.Body)
+			}
+			time.Sleep(ci)
 		}
-		time.Sleep(cfg.CheckInterval)
 	}
 }
