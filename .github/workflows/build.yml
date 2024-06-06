@@ -24,7 +24,7 @@ jobs:
         id: go
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -42,7 +42,7 @@ jobs:
         id: go
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Test
         run: go test -v -race ./...
@@ -61,7 +61,7 @@ jobs:
         id: go
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run golangci-lint # https://github.com/marketplace/actions/run-golangci-lint
         uses: golangci/golangci-lint-action@v3
@@ -73,7 +73,7 @@ jobs:
     if: contains(github.ref, 'main')
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -103,7 +103,7 @@ jobs:
           tag_prefix: v
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         if: ${{ steps.gitversion.outputs.PreReleaseTagWithDash == '' }}
         with:
           fetch-depth: 0
