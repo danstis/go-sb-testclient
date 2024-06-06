@@ -1,8 +1,11 @@
 # Make sure to check the documentation at http://goreleaser.com
+version: 2
+
 before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod download
+
 builds:
   - env:
       - CGO_ENABLED=0
@@ -12,11 +15,16 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - amd64
+      - 386
     ldflags:
       - -s -w -X github.com/danstis/go-sb-testclient/internal/version.Version={{.Version}}
     binary: go-sb-testclient
+
 archives:
-  - replacements:
+  - id: default
+    replacements:
       darwin: Darwin
       linux: Linux
       windows: Windows
@@ -29,10 +37,13 @@ archives:
       - LICENSE*
       - README*
       - config.json.example
+
 checksum:
   name_template: "checksums.txt"
+
 snapshot:
   name_template: "{{ .Tag }}-next"
+
 changelog:
   sort: asc
   filters:
