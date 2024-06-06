@@ -65,8 +65,6 @@ jobs:
 
       - name: Run golangci-lint # https://github.com/marketplace/actions/run-golangci-lint
         uses: golangci/golangci-lint-action@v3
-        with:
-          version: v1.50
 
   release:
     name: Release
