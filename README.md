@@ -5,11 +5,68 @@
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/danstis/go-sb-testclient)](https://pkg.go.dev/github.com/danstis/go-sb-testclient)
 [![Release](https://img.shields.io/github/release/danstis/go-sb-testclient.svg?style=flat-square)](https://github.com/danstis/go-sb-testclient/releases/latest)
 
-Azure Service Bus testing client.
+Azure Service Bus testing client for comparing two subscription receivers side by side.
 
-## Code structure
+The binary opens a receiver for `primaryServiceBus` and a receiver for `secondaryServiceBus`, then logs any received messages with `PRI` and `SEC` prefixes until the process is interrupted.
 
-Projects should follow the folder structure from this standard project layout: [project-layout](https://github.com/golang-standards/project-layout)
+## Setup
+
+Copy the example config into place before running the client:
+
+```bash
+cp config.json.example config.json
+```
+
+The application expects `config.json` in the repository root.
+
+## Configuration
+
+Each service bus block requires these fields:
+
+- `connectionString`
+- `topic`
+- `subscription`
+
+Top-level settings:
+
+- `completeMessages`
+- `checkInterval`
+
+Example:
+
+```json
+{
+  "primaryServiceBus": {
+    "connectionString": "Endpoint=...",
+    "topic": "topicName",
+    "subscription": "subscriptionName"
+  },
+  "secondaryServiceBus": {
+    "connectionString": "Endpoint=...",
+    "topic": "topicName",
+    "subscription": "subscriptionName"
+  },
+  "completeMessages": false,
+  "checkInterval": "5s"
+}
+```
+
+## Runtime behavior
+
+- `checkInterval` must be a valid Go duration such as `5s`.
+- `completeMessages=false` uses peek-lock mode.
+- `completeMessages=true` switches to receive-and-delete mode.
+- The process continues running until interrupted.
+
+## Run
+
+From the repository root:
+
+```bash
+go run ./cmd/go-sb-testclient
+```
+
+Once running, the client polls both subscriptions and writes received messages to the log with `PRI` and `SEC` prefixes.
 
 ## Commit message style
 
