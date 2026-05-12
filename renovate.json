@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Keep the GitHub Actions Go toolchain aligned with the declared Go version.",
+      "fileMatch": [
+        "^\\.github/workflows/build\\.yml$"
+      ],
+      "matchStrings": [
+        "GO_VERSION: \"(?<currentValue>[^\"]+)\" # renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+) versioning=(?<versioning>[^\\s]+)"
+      ]
+    }
+  ]
+}
