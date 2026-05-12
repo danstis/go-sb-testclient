@@ -17,10 +17,10 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go 1.x
+      - name: Set up Go from go.mod
         uses: actions/setup-go@v6
         with:
-          go-version: ^1.14
+          go-version-file: go.mod
         id: go
 
       - name: Check out code
@@ -35,10 +35,10 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go 1.x
+      - name: Set up Go from go.mod
         uses: actions/setup-go@v6
         with:
-          go-version: ^1.14
+          go-version-file: go.mod
         id: go
 
       - name: Check out code
@@ -54,10 +54,10 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go 1.x
+      - name: Set up Go from go.mod
         uses: actions/setup-go@v6
         with:
-          go-version: ^1.14
+          go-version-file: go.mod
         id: go
 
       - name: Check out code
@@ -77,10 +77,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go 1.x
+      - name: Set up Go from go.mod
         uses: actions/setup-go@v6
         with:
-          go-version: ^1.14
+          go-version-file: go.mod
         id: go
 
       - name: Install GitVersion
